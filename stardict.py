@@ -1803,8 +1803,52 @@ def open_local(filename):
     fn = os.path.join(base + '/share/stardict', filename)   
     return open_dict(fn)
 
+def insert_tag(dstname, srcname):
+    dst = sqlite3.connect(dstname, isolation_level="IMMEDIATE")
+    src = open_dict(srcname)
+
+    pc = tools.progress(len(src))
+    cursor = dst.execute("SELECT id, tag  from stardict")
+    for row in cursor:
+        pc.next()
+        #data = row[word]
+        idn = row[0]
+        x = row[1]
+        if isinstance(x, str) or isinstance(x, unicode):
+            if x != '':
+                strs=x.split(' ')
+                value=0b0
+                for y in range(len(strs)):
+                    if strs[y]=="zk":
+                        value |= 0b00000001
+                    elif strs[y]=="gk":
+                        value |= 0b00000010
+                    elif strs[y]=="ky":
+                        value |= 0b00000100
+                    elif strs[y]=="cet4":
+                        value |= 0b00001000
+                    elif strs[y]=="cet6":
+                        value |= 0b00010000
+                    elif strs[y]=="ielts":
+                        value |= 0b00100000
+                    elif strs[y]=="toefl":
+                        value |= 0b01000000
+                    elif strs[y]=="gre":
+                        value |= 0b10000000
 
 
+                sql = "INSERT INTO tag VALUES(?, ?);"
+                try:
+                    dst.execute(sql, (idn, value))
+                except sqlite3.IntegrityError:
+                    print("插入错误！")
+                    return False
+
+
+    dst.commit()
+    dst.close()
+    pc.done()
+    return True
 
 #----------------------------------------------------------------------
 # testing
@@ -1883,7 +1927,7 @@ if __name__ == '__main__':
         return 0
     def test5():
         print(tools.validate_word('Hello World', False))
-    test3()
+    insert_tag("gdict.db","test.csv")
 
 
 
